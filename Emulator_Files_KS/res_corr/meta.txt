@@ -1,0 +1,6 @@
+Resolution correction factor
+L15n512 / L15n384
+zout: redshifts
+kfkms: k values in km/s
+res_corr: resolution correction factor
+Created by generate_resolution_correction.py
