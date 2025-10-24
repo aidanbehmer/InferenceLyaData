@@ -83,20 +83,27 @@ param_dict = {
     "bhfeedback": 10,
 }
 param_idx = param_dict[param_name]  # index of the parameter in the params array
+param_subset=["dtau0","Ap"]
+param_subset_name = "-".join(param_subset) # make list into string
+outdir = "2pvar"
+
+
 
 # TODO: Probably also be careful about the filepath~
 with h5py.File(
-    "../2pvar/lf_sobol2p_n['dtau0', 'Ap'].hdf5", "r"
+    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "w"
 ) as file:
     print(file.keys())
-
+    
     flux_vectors_low = file["flux_vectors"][:]
     kfkms_low = file["kfkms"][:]
     # kfmpc = file["kfmpc"][:]
     zout = file["zout"][:]
     resolution_low=np.full((1750,1),0.4)
+    
 
     params_low = file["params"][:]
+    
 #kfkms.shape, flux_vectors.shape, zout.shape, params.shape
 """
 with h5py.File(
@@ -205,12 +212,14 @@ assert(Y_act.shape== (3500, 1))
 
 
 with h5py.File(
-    "../2pvar/lf_sobol2p_n['dtau0', 'Ap']].hdf5", "r"
+    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "w"
 ) as file:
+    
     flux_vectors_low_test = file["flux_vectors"][:]
     kfkms_low_test = file["kfkms"][:]
     zout = file["zout"][:]
     params_low_test = file["params"][:]
+    
 
 
 
