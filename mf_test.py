@@ -82,7 +82,7 @@ param_dict = {
     "hireionz": 9,
     "bhfeedback": 10,
 }
-param_idx = param_dict[param_name]  # index of the parameter in the params array
+# param_idx = param_dict[param_name]  # index of the parameter in the params array
 param_subset=["dtau0","Ap"]
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "2pvar"
@@ -156,13 +156,24 @@ flux_vectors_z_low = flux_vectors_z_low.flatten()[:, np.newaxis]  # add a new ax
 kfkms_z_low = kfkms_low[:, zindex, :]
 kfkms_z_low = kfkms_z_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
-params_values_low = params_low[:, param_idx]
-# repeat this for the number of kfkms
-params_values_low = np.repeat(params_values_low[:, np.newaxis], kfkms_low.shape[2], axis=1)
-params_values_low = params_values_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
+# loop over param_subset to get the values for each parameter
+X_param = []
+for param_test in param_subset:
+    # get the index from the dict
+    param_idx = param_dict[param_test]
+    # get the values for this parameter
+    params_values_low = params_low[:, param_idx]
+
+    # repeat this for the number of kfkms
+    params_values_low = np.repeat(params_values_low[:, np.newaxis], kfkms_low.shape[2], axis=1)
+    params_values_low = params_values_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
+
+    # append to the list
+    X_param.append(params_values_low)
 
 # Shapes: (1750, 1)
-X_param = params_values_low
+X_param = np.hstack(X_param)
+print("X_param shape: "+str(X_param.shape))
 X_k = kfkms_z_low
 print("X_k shape: "+str(X_k.shape))
 y = flux_vectors_z_low
@@ -170,10 +181,11 @@ y = flux_vectors_z_low
 assert(y.shape == (nnparam * nkk, 1))
 # Concatenate inputs to form design matrix
 
+# normalization of x
+X_param_normalized = np.copy(X_param)
+for i in range(X_param.shape[1]):
+    X_param_normalized[:, i] = (X_param[:, i] - np.min(X_param[:, i])) / (np.max(X_param[:, i]) - np.min(X_param[:, i]))
 
-X_max=(np.max(X_param,axis=0))
-X_min=(np.min(X_param,axis=0))
-X_param_normalized=(X_param-X_min)/(X_max-X_min)
 #save the max and min for use in reverting back to original scale
 #make this a function as well
 
@@ -182,93 +194,38 @@ X_k_min=np.min(X_k,axis=0)
 X_k_normalized=(X_k-X_k_min)/(X_k_max-X_k_min)
 
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
-X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 3)
-assert(X.shape== (nnparam * nkk, 2))
+X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 4)
+assert(X.shape== (nnparam * nkk, 3))
 
-#params_values_hi = params_low[:, param_idx]
-# repeat this for the number of kfkms
-#params_values_hi = np.repeat(params_values_hi[:, np.newaxis], kfkms_low.shape[2], axis=1)
-#params_values_hi = params_values_hi.flatten()[:, np.newaxis]  # add a new axis to make it 2D
-
-# Shapes: (1750, 1)
-#X_param_hi = params_values_hi
-
-#y_hi = flux_vectors_z_hi
-
-# #normalization of y
-# y_low_mean=np.mean(y, axis=0)
-# y_low_std=np.std(y, axis=0)
-# y_low_normalized=(y-y_low_mean)/y_low_std
-
-# y_hi_mean=np.mean(y_hi, axis=0)
-# y_hi_std=np.std(y_hi, axis=0)
-# y_hi_normalized=(y_hi-y_low_mean)/y_low_std
-
-#stacking
-#X_hi_max=np.max(X_param_hi,axis=0)
-#X_hi_min=np.min(X_param_hi,axis=0)
-#X_param_hi_normalized=(X_param_hi-X_hi_min)/(X_hi_max-X_hi_min)
-
-#X2=np.hstack([X_param_hi_normalized, X_k_normalized]) #non resolution
-#X_2=np.hstack([X_param_hi_normalized, X_k_normalized,resolution_hi])  # shape: (1750, 3)
-
-#normalization of x
-#X_1_normalized=X_1/(np.max(X_1,axis=0)-np.min(X_1,axis=0))
-#X_2_normalized=X_2/(np.max(X_2,axis=0)-np.min(X_2,axis=0))
-#THROWS ERROR, I BELIEVE BECAUSE OF DIVISION BY 0
-
-# #end stacking
-# X_act=np.vstack([X_1])  # shape: (3500, 3)
-# Y_act=np.vstack([y])  # shape: (3500, 1)
-
-# assert(X_act.shape== (2 * nnparam * nkk, 3))
-# assert(Y_act.shape== (2 * nnparam * nkk, 1))
-
-
-
-with h5py.File(
-    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "r"
-) as file:
-    
-    flux_vectors_low_test = file["flux_vectors"][:]
-    kfkms_low_test = file["kfkms"][:]
-    zout = file["zout"][:]
-    params_low_test = file["params"][:]
-    
-
-
-
-# zindex = np.where(zout == z)[0][0]
-flux_vectors_z_test = flux_vectors_low_test[:, zindex, :]
-kfkms_z_test = kfkms_low_test[:, zindex, :]
-
-# --- Normalize with training stats ---
-flux_vectors_z_test = (flux_vectors_z_test - mean_flux_low) / std_flux_low
-kfkms_z_test = (kfkms_z_test - X_k_min) / (X_k_max - X_k_min)
-
-param_dict = {"dtau0":0, "tau0":1, "ns":2, "Ap":3, "herei":4, "heref":5,
-              "alphaq":6, "hub":7, "omegamh2":8, "hireionz":9, "bhfeedback":10}
-param_idx_test = param_dict[param_test]
-
-X_param_test = params_low_test[:, param_idx_test]
-X_param_test = (X_param_test - X_param_test.min()) / (X_param_test.max() - X_param_test.min())
-
-# Flatten to match training shape
-X_param_test = np.repeat(X_param_test[:, np.newaxis], kfkms_z_test.shape[1], axis=1).flatten()[:, np.newaxis]
-X_k_test = kfkms_z_test.flatten()[:, np.newaxis]
-
-# Resolution: same shape, just constant
-resolution_test = np.full_like(X_k_test, 0.4)
-
-X_test = np.hstack([X_param_test, X_k_test, resolution_test])
-y_true = flux_vectors_z_test.flatten()[:, np.newaxis]
+# --- Preparing the input to the model ---
+X_test = X_1  # only low-fidelity data for testing
+y_true = y  # true values for comparison
 
 # --- Predict using your trained model ---
 model = PySREmu()
 y_pred = model.predict(X_test)
+print("y_pred shape: "+str(y_pred.shape))
+# difference between true and predicted
+y_diff = y_true.flatten() - y_pred.flatten()
+# RMSE
+rmse = np.sqrt(np.mean(y_diff**2))
+print("RMSE: "+str(rmse))
+# relative error
+relative_error = np.mean(np.abs(y_diff / y_true.flatten())) * 100
+print("Relative Error (%): "+str(relative_error))
+# prediction plot
+plt.figure(figsize=(8, 6))
+plt.scatter(y_true, y_pred, alpha=0.5)
+plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
+plt.xlabel("True P1D (normalized)")
+plt.ylabel("Predicted P1D (normalized)")
+plt.title("True vs Predicted P1D")
+plt.grid()
+plt.show()
 
 
-n_sims, n_k = flux_vectors_low_test.shape[0], flux_vectors_low_test.shape[2]
+# TODO: remove this later for clean
+n_sims, n_k = nnparam, nkk
 
 mean_flux_expand = np.repeat(mean_flux_low[np.newaxis, :], n_sims, axis=0)
 std_flux_expand = np.repeat(std_flux_low[np.newaxis, :], n_sims, axis=0)
@@ -279,3 +236,6 @@ std_flux_flat = std_flux_expand.flatten()
 
 # Denormalize
 y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
+
+# comparing true vs predicted
+
