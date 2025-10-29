@@ -87,11 +87,12 @@ param_subset=["dtau0","Ap"]
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "2pvar"
 
-
+import os
+print(os.path.abspath("lf_sobol2p_n['dtau0', 'ns']"))
 
 # TODO: Probably also be careful about the filepath~
 with h5py.File(
-    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "w"
+    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "r"
 ) as file:
     print(file.keys())
     
@@ -99,10 +100,23 @@ with h5py.File(
     kfkms_low = file["kfkms"][:]
     # kfmpc = file["kfmpc"][:]
     zout = file["zout"][:]
-    resolution_low=np.full((1750,1),0.4)
     
+    nnparam, nzz, nkk = kfkms_low.shape
 
+    # this is a flatten array of param and k
+    resolution_low=np.full((nnparam * nkk, 1),0.4)
+
+    print(kfkms_low.shape)
     params_low = file["params"][:]
+    print(zout)
+    print(zout==z)
+    # closest index z to zout
+    zindex = np.argmin(np.abs(zout - z))
+    print("Closest index to z={} is at index {}, zout={}".format(z, zindex, zout[zindex]))
+    # difference should be small such that |z- zout| < 0.1
+    assert np.abs(zout[zindex] - z) < 0.1
+    print(kfkms_low[:, zindex, :])
+    
     
 #kfkms.shape, flux_vectors.shape, zout.shape, params.shape
 """
@@ -118,7 +132,7 @@ with h5py.File(
     resolution_hi=np.full((1750,1),0.8)
     params_hi = file["params"][:]
 """
-zindex = np.where(zout == z)[0][0]  # index of z = 5
+# zindex = np.where(zout == z)[0]#[0]  # index of z = 5
 
 # take z=3.6, and flatten the flux vectors, such that the dim=1 is p1d values per k and parameter
 flux_vectors_z_low = flux_vectors_low[:, zindex, :]
@@ -150,9 +164,10 @@ params_values_low = params_values_low.flatten()[:, np.newaxis]  # add a new axis
 # Shapes: (1750, 1)
 X_param = params_values_low
 X_k = kfkms_z_low
+print("X_k shape: "+str(X_k.shape))
 y = flux_vectors_z_low
 
-assert(y.shape == (1750, 1))
+assert(y.shape == (nnparam * nkk, 1))
 # Concatenate inputs to form design matrix
 
 
@@ -168,7 +183,7 @@ X_k_normalized=(X_k-X_k_min)/(X_k_max-X_k_min)
 
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
 X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 3)
-assert(X.shape== (1750, 2))
+assert(X.shape== (nnparam * nkk, 2))
 
 #params_values_hi = params_low[:, param_idx]
 # repeat this for the number of kfkms
@@ -202,17 +217,17 @@ assert(X.shape== (1750, 2))
 #X_2_normalized=X_2/(np.max(X_2,axis=0)-np.min(X_2,axis=0))
 #THROWS ERROR, I BELIEVE BECAUSE OF DIVISION BY 0
 
-#end stacking
-X_act=np.vstack([X_1])  # shape: (3500, 3)
-Y_act=np.vstack([y])  # shape: (3500, 1)
+# #end stacking
+# X_act=np.vstack([X_1])  # shape: (3500, 3)
+# Y_act=np.vstack([y])  # shape: (3500, 1)
 
-assert(X_act.shape== (3500, 3))
-assert(Y_act.shape== (3500, 1))
+# assert(X_act.shape== (2 * nnparam * nkk, 3))
+# assert(Y_act.shape== (2 * nnparam * nkk, 1))
 
 
 
 with h5py.File(
-    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "w"
+    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "r"
 ) as file:
     
     flux_vectors_low_test = file["flux_vectors"][:]
@@ -223,7 +238,7 @@ with h5py.File(
 
 
 
-zindex = np.where(zout == z)[0][0]
+# zindex = np.where(zout == z)[0][0]
 flux_vectors_z_test = flux_vectors_low_test[:, zindex, :]
 kfkms_z_test = kfkms_low_test[:, zindex, :]
 
