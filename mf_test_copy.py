@@ -4,16 +4,15 @@ import numpy as np
 class PySREmu:
 
 
-  def equation_(self, herei, alphaq, x1, x2):
+  def equation_(self, dtau0, Ap, x1, x2):
     """
     x1: normalized k
     x2: resoltuion (LF: 0.4, HF: 0.8)
 
     return: normalized P1D
     """
-    return (((-0.25168943 - x2) * 0.7829114) + (herei ** 0.82891506)) / 0.2500997 + (((0.5953154/ x2) - alphaq) + -0.42244032) / 0.5394675 # right before the -a: (0.5953154/ x2) 
-
-  #((((dtau0 - 1.1355175) / 0.37476897) -((dtau0 / (x1 - 2.0014355)) +(x2 * 2.295514))) + 2.2722373 *(Ap ) +(np.log(Ap + 0.60608655) * 2.6401424)) # right after Ap: + (x2 * -1.6689187)
+    return (np.sqrt((dtau0 / 0.43236703)**np.exp(x1)) - np.exp(np.cos(-0.34073448 / x2)) 
+            + ((((0.63997537 - np.sin(0.09439085 + Ap)) * (x1 -2.6272435)) + Ap)) +0.28042912) # right after Ap): - x2
 
   def predict(self, X):
     """
@@ -28,8 +27,8 @@ class PySREmu:
 
     for _x in X:
       # _x is (4, )
-      herei, alphaq, x1, x2 = _x
-      this_y_pred = self.equation_(herei, alphaq, x1, x2)
+      dtau0, Ap, x1, x2 = _x
+      this_y_pred = self.equation_(dtau0, Ap, x1, x2)
       y_pred.append(this_y_pred)
 
     return np.array(y_pred)
@@ -81,7 +80,7 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["herei","alphaq"]
+param_subset=["dtau0","Ap"]
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "2pvar"
 
@@ -138,12 +137,7 @@ mean_flux_low = np.mean(flux_vectors_z_low, axis=0)
 std_flux_low = np.std(flux_vectors_z_low, axis=0)
 flux_vectors_z_low = (flux_vectors_z_low - mean_flux_low) / std_flux_low  # normalize to mean
 
-# save the mean and std txt files for later use
-np.savetxt(f"{outdir}/mean_flux_low_{param_subset_name}.txt", mean_flux_low)
-np.savetxt(f"{outdir}/std_flux_low_{param_subset_name}.txt", std_flux_low)
 
-print("mean_flux_low:", mean_flux_low.mean())
-print("std_flux_low:", std_flux_low.mean())
 #use the mean and std variables later when reverting back to original scale
 #make this a function instead of in here
 ########################################################################
@@ -235,37 +229,6 @@ std_flux_flat = std_flux_expand.flatten()
 # Denormalize
 y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
 
-# comparing true vs predicted
-
-plt.figure(figsize=(8, 6))
-sc = plt.scatter(
-    y_true.flatten(), y_pred.flatten(),
-    c=X_param[:, 0],  # color by dtau0
-    cmap='copper', alpha=0.5
-)
-plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
-plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
-plt.title("True vs Predicted P1D (colored by dtau0)")
-plt.colorbar(sc, label="dtau0 value")
-plt.grid(True)
-plt.show()
-
-
-#normalized plot
-# TODO: remove this later for clean
-n_sims, n_k = nnparam, nkk
-
-mean_flux_expand = np.repeat(mean_flux_low[np.newaxis, :], n_sims, axis=0)
-std_flux_expand = np.repeat(std_flux_low[np.newaxis, :], n_sims, axis=0)
-
-# Flatten to align with y_pred
-mean_flux_flat = mean_flux_expand.flatten()
-std_flux_flat = std_flux_expand.flatten()
-
-# Denormalize
-y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
-
 y_true_denorm = y_true.flatten() * std_flux_flat + mean_flux_flat
 
 y_diff_denorm = y_true_denorm.flatten() - y_pred_denorm.flatten()
@@ -284,4 +247,22 @@ plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
 plt.title("True vs Predicted P1D")
 plt.grid()
+plt.show()
+
+
+
+# comparing true vs predicted
+
+plt.figure(figsize=(8, 6))
+sc = plt.scatter(
+    y_true.flatten(), y_pred.flatten(),
+    c=X_param[:, 0],  # color by dtau0
+    cmap='copper', alpha=0.5
+)
+plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
+plt.xlabel("True P1D (normalized)")
+plt.ylabel("Predicted P1D (normalized)")
+plt.title("True vs Predicted P1D (colored by dtau0)")
+plt.colorbar(sc, label="dtau0 value")
+plt.grid(True)
 plt.show()
