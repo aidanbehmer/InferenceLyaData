@@ -3,35 +3,79 @@ import numpy as np
 
 class PySREmu:
 
+    # because we normalized to [0, 1]
+    dtau0_fid = 0.5
+    Ap_fid = 0.5
+    ns_fid = 0.5
 
-  def equation_(self, dtau0, Ap, x1, x2):
-    """
-    x1: normalized k
-    x2: resoltuion (LF: 0.4, HF: 0.8)
+    def equation_(self, dtau0, Ap, ns, x1, x2):
+        """
+        x1: normalized k
+        x2: resoltuion (LF: 0.4, HF: 0.8)
 
-    return: normalized P1D
-    """
-    return (np.sqrt((dtau0 / 0.43236703)**np.exp(x1)) - np.exp(np.cos(-0.34073448 / x2)) 
-            + ((((0.63997537 - np.sin(0.09439085 + Ap)) * (x1 -2.6272435)) + Ap)) +0.28042912) # right after Ap): - x2
+        return: normalized P1D
 
-  def predict(self, X):
-    """
-    X: (number of points, number of parameters) -> e.g., (1750, 4)
+        separate terms of parameter-dependent parts and the global parts (inlcudes x1 and x2)
 
-    0: dtau0
-    1: Ap
-    2: x1
-    3: x2
-    """
-    y_pred = []
+        equation(Herei, alphaq, x1, x2)
+         = equation1(Herei, x1, x2) - equation1(Herei_fid, x1, x2) + equation2(alphaq, x1, x2) - equation2(alphaq_fid, x1, x2)
+          + Mean(constant terms(eqaution1(Herei_fid, x1, x2) and equation2(alphaq_fid, x1, x2) are constants))
+        """
+        return (
+            self.equation1(dtau0, x1, x2)
+            - self.equation1(self.dtau0_fid, x1, x2)
+            + self.equation2(Ap, x1, x2)
+            - self.equation2(self.Ap_fid, x1, x2)
+            + 0.0
+            + self.equation3(ns, x1, x2)
+            - self.equation3(self.ns_fid, x1, x2)
+        ) + np.mean(
+            [
+                self.equation1(self.dtau0_fid, x1, x2),
+                self.equation2(self.Ap_fid, x1, x2),
+                self.equation3(self.ns_fid, x1, x2),
+            ]
+        )  # Mean of constant terms
 
-    for _x in X:
-      # _x is (4, )
-      dtau0, Ap, x1, x2 = _x
-      this_y_pred = self.equation_(dtau0, Ap, x1, x2)
-      y_pred.append(this_y_pred)
+    def equation1(self, dtau0, x1, x2):
+        """
+        only vary dtau0
+        """
+        return  (((dtau0 + x1) - 1.0002773) * 1.6420794) - x2
 
-    return np.array(y_pred)
+
+    def equation2(self, Ap, x1, x2):
+        """
+        only vary Ap
+        """
+        return ((((Ap * (x1 * x1)) + -1.17207) * ((Ap * -2.4086287) + x2)) - 1.0434937) - (x1 * -1.5642396)
+
+    
+    def equation3(self, ns, x1, x2):
+        """
+        only vary ns
+        """
+        return (-0.48247418 + ((x1 * (ns * 3.1947596)) - x2)) - x1
+
+    def predict(self, X):
+        """
+        X: (number of points, number of parameters) -> e.g., (1750, 5)
+
+        0: dtau0
+        1: Ap
+        2: ns
+        3: x1
+        4: x2
+        """
+        y_pred = []
+
+        for _x in X:
+            # _x is (4, )
+            dtau0, Ap, ns, x1, x2 = _x
+            this_y_pred = self.equation_(dtau0, Ap, ns, x1, x2)
+            y_pred.append(this_y_pred)
+
+        return np.array(y_pred)
 
 
 
@@ -56,8 +100,7 @@ plt.rcParams["grid.color"] = "#666666"
 
 ####### Set Input Arguments ########
 # This is where you set the args to your function.
-# Parameter name
-param_name = "dtau0"  
+
 # take z = 3.6
 z = 3.6
 
@@ -80,9 +123,9 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["dtau0","Ap"]
+param_subset=["dtau0","Ap","ns"]
 param_subset_name = "-".join(param_subset) # make list into string
-outdir = "2pvar"
+outdir = "3pvar"
 
 import os
 print(os.path.abspath("lf_sobol2p_n['dtau0', 'ns']"))
@@ -137,7 +180,12 @@ mean_flux_low = np.mean(flux_vectors_z_low, axis=0)
 std_flux_low = np.std(flux_vectors_z_low, axis=0)
 flux_vectors_z_low = (flux_vectors_z_low - mean_flux_low) / std_flux_low  # normalize to mean
 
+# save the mean and std txt files for later use
+np.savetxt(f"{outdir}/mean_flux_low_{param_subset_name}.txt", mean_flux_low)
+np.savetxt(f"{outdir}/std_flux_low_{param_subset_name}.txt", std_flux_low)
 
+print("mean_flux_low:", mean_flux_low.mean())
+print("std_flux_low:", std_flux_low.mean())
 #use the mean and std variables later when reverting back to original scale
 #make this a function instead of in here
 ########################################################################
@@ -187,7 +235,7 @@ X_k_normalized=(X_k-X_k_min)/(X_k_max-X_k_min)
 
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
 X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 4)
-assert(X.shape== (nnparam * nkk, 3))
+assert(X.shape== (nnparam * nkk, 4))
 
 # --- Preparing the input to the model ---
 X_test = X_1  # only low-fidelity data for testing
@@ -213,9 +261,43 @@ plt.xlabel("True P1D (normalized)")
 plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
+# TODO: remove this later for clean
+n_sims, n_k = nnparam, nkk
+
+mean_flux_expand = np.repeat(mean_flux_low[np.newaxis, :], n_sims, axis=0)
+std_flux_expand = np.repeat(std_flux_low[np.newaxis, :], n_sims, axis=0)
+
+# Flatten to align with y_pred
+mean_flux_flat = mean_flux_expand.flatten()
+std_flux_flat = std_flux_expand.flatten()
+
+# Denormalize
+y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
+
+# comparing true vs predicted
+
+plt.figure(figsize=(8, 6))
+sc = plt.scatter(
+    y_true.flatten(), y_pred.flatten(),
+    c=X_param[:, 0],  # color by dtau0
+    cmap='copper', alpha=0.5
+)
+plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
+plt.xlabel("True P1D (normalized)")
+plt.ylabel("Predicted P1D (normalized)")
+plt.title("True vs Predicted P1D (colored by dtau0)")
+plt.colorbar(sc, label="dtau0 value")
+plt.grid(True)
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
+
+plt.show()
+
+
+#normalized plot
 # TODO: remove this later for clean
 n_sims, n_k = nnparam, nkk
 
@@ -247,22 +329,5 @@ plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
 plt.title("True vs Predicted P1D")
 plt.grid()
-plt.show()
-
-
-
-# comparing true vs predicted
-
-plt.figure(figsize=(8, 6))
-sc = plt.scatter(
-    y_true.flatten(), y_pred.flatten(),
-    c=X_param[:, 0],  # color by dtau0
-    cmap='copper', alpha=0.5
-)
-plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
-plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
-plt.title("True vs Predicted P1D (colored by dtau0)")
-plt.colorbar(sc, label="dtau0 value")
-plt.grid(True)
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()

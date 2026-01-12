@@ -3,36 +3,66 @@ import numpy as np
 
 class PySREmu:
 
+    # because we normalized to [0, 1]
+    hrerei_fid = 0.5
+    alphaq_fid = 0.5
 
-  def equation_(self, herei, alphaq, x1, x2):
-    """
-    x1: normalized k
-    x2: resoltuion (LF: 0.4, HF: 0.8)
+    def equation_(self, herei, alphaq, x1, x2):
+        """
+        x1: normalized k
+        x2: resoltuion (LF: 0.4, HF: 0.8)
 
-    return: normalized P1D
-    """
-    return (((-0.25168943 - x2) * 0.7829114) + (herei ** 0.82891506)) / 0.2500997 + (((0.5953154/ x2) - alphaq) + -0.42244032) / 0.5394675 # right before the -a: (0.5953154/ x2) 
+        return: normalized P1D
 
-  #((((dtau0 - 1.1355175) / 0.37476897) -((dtau0 / (x1 - 2.0014355)) +(x2 * 2.295514))) + 2.2722373 *(Ap ) +(np.log(Ap + 0.60608655) * 2.6401424)) # right after Ap: + (x2 * -1.6689187)
+        separate terms of parameter-dependent parts and the global parts (inlcudes x1 and x2)
 
-  def predict(self, X):
-    """
-    X: (number of points, number of parameters) -> e.g., (1750, 4)
+        equation(Herei, alphaq, x1, x2)
+         = equation1(Herei, x1, x2) - equation1(Herei_fid, x1, x2) + equation2(alphaq, x1, x2) - equation2(alphaq_fid, x1, x2)
+          + Mean(constant terms(eqaution1(Herei_fid, x1, x2) and equation2(alphaq_fid, x1, x2) are constants))
+        """
+        return (
+            self.equation1(herei, x1, x2)
+            - self.equation1(self.hrerei_fid, x1, x2)
+            + self.equation2(alphaq, x1, x2)
+            - self.equation2(self.alphaq_fid, x1, x2)
+            + 0.0
+        ) + np.mean(
+            [
+                self.equation1(self.hrerei_fid, x1, x2),
+                self.equation2(self.alphaq_fid, x1, x2),
+            ]
+        )  # Mean of constant terms
 
-    0: dtau0
-    1: Ap
-    2: x1
-    3: x2
-    """
-    y_pred = []
+    def equation1(self, herei, x1, x2):
+        """
+        only vary Herei
+        """
+        return (((-0.25168943 - x2) * 0.7829114) + (herei**0.82891506)) / 0.2500997
 
-    for _x in X:
-      # _x is (4, )
-      herei, alphaq, x1, x2 = _x
-      this_y_pred = self.equation_(herei, alphaq, x1, x2)
-      y_pred.append(this_y_pred)
+    def equation2(self, alphaq, x1, x2):
+        """
+        only vary alphaq
+        """
+        return (((0.5953154 / x2) - alphaq) + -0.42244032) / 0.5394675
 
-    return np.array(y_pred)
+    def predict(self, X):
+        """
+        X: (number of points, number of parameters) -> e.g., (1750, 4)
+
+        0: dtau0
+        1: Ap
+        2: x1
+        3: x2
+        """
+        y_pred = []
+
+        for _x in X:
+            # _x is (4, )
+            herei, alphaq, x1, x2 = _x
+            this_y_pred = self.equation_(herei, alphaq, x1, x2)
+            y_pred.append(this_y_pred)
+
+        return np.array(y_pred)
 
 
 
