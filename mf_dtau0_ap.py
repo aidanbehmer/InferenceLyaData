@@ -4,10 +4,10 @@ import numpy as np
 class PySREmu:
 
     # because we normalized to [0, 1]
-    hrerei_fid = 0.5
-    alphaq_fid = 0.5
+    dtau0_fid = 0.5
+    ap_fid = 0.5
 
-    def equation_(self, herei, alphaq, x1, x2):
+    def equation_(self, dtau0, ap, x1, x2):
         """
         x1: normalized k
         x2: resoltuion (LF: 0.4, HF: 0.8)
@@ -21,29 +21,29 @@ class PySREmu:
           + Mean(constant terms(eqaution1(Herei_fid, x1, x2) and equation2(alphaq_fid, x1, x2) are constants))
         """
         return (
-            self.equation1(herei, x1, x2)
-            - self.equation1(self.hrerei_fid, x1, x2)
-            + self.equation2(alphaq, x1, x2)
-            - self.equation2(self.alphaq_fid, x1, x2)
+            self.equation1(dtau0, x1, x2)
+            - self.equation1(self.dtau0_fid, x1, x2)
+            + self.equation2(ap, x1, x2)
+            - self.equation2(self.ap_fid, x1, x2)
             + 0.0
         ) + np.mean(
             [
-                self.equation1(self.hrerei_fid, x1, x2),
-                self.equation2(self.alphaq_fid, x1, x2),
+                self.equation1(self.dtau0_fid, x1, x2),
+                self.equation2(self.ap_fid, x1, x2),
             ]
         )  # Mean of constant terms
 
-    def equation1(self, herei, x1, x2):
+    def equation1(self, dtau0, x1, x2):
         """
-        only vary Herei
+        only vary dtau0
         """
-        return (((-0.25168943 - x2) * 0.7829114) + (herei**0.82891506)) / 0.2500997
+        return (((1.4061172 - x1) ** -0.5989224) * dtau0) - (((x2 * 1.3422583) - dtau0) + 1.3998809)
 
-    def equation2(self, alphaq, x1, x2):
+    def equation2(self, Ap, x1, x2):
         """
-        only vary alphaq
+        only vary Ap
         """
-        return (((0.5953154 / x2) - alphaq) + -0.42244032) / 0.5394675
+        return (((Ap + Ap) ** np.cos(x1)) + ((-0.5290618 - np.sin(x2)) * 1.4107764)) + Ap
 
     def predict(self, X):
         """
@@ -58,8 +58,8 @@ class PySREmu:
 
         for _x in X:
             # _x is (4, )
-            herei, alphaq, x1, x2 = _x
-            this_y_pred = self.equation_(herei, alphaq, x1, x2)
+            dtau0, ap, x1, x2 = _x
+            this_y_pred = self.equation_(dtau0, ap, x1, x2)
             y_pred.append(this_y_pred)
 
         return np.array(y_pred)
