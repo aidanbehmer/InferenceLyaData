@@ -111,7 +111,7 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["dtau0","Ap"]
+param_subset=["herei","alphaq"]
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "2pvar"
 
@@ -249,6 +249,7 @@ plt.xlabel("True P1D (normalized)")
 plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
@@ -279,6 +280,7 @@ plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D (colored by dtau0)")
 plt.colorbar(sc, label="dtau0 value")
 plt.grid(True)
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
@@ -314,4 +316,5 @@ plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
 plt.title("True vs Predicted P1D")
 plt.grid()
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()

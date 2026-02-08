@@ -5,9 +5,10 @@ class PySREmu:
 
     # because we normalized to [0, 1]
     dtau0_fid = 0.5
-    ap_fid = 0.5
+    Ap_fid = 0.5
+    ns_fid = 0.5
 
-    def equation_(self, dtau0, ap, x1, x2):
+    def equation_(self, dtau0, Ap, ns, x1, x2):
         """
         x1: normalized k
         x2: resoltuion (LF: 0.4, HF: 0.8)
@@ -23,13 +24,16 @@ class PySREmu:
         return (
             self.equation1(dtau0, x1, x2)
             - self.equation1(self.dtau0_fid, x1, x2)
-            + self.equation2(ap, x1, x2)
-            - self.equation2(self.ap_fid, x1, x2)
+            + self.equation2(Ap, x1, x2)
+            - self.equation2(self.Ap_fid, x1, x2)
             + 0.0
+            + self.equation3(ns, x1, x2)
+            - self.equation3(self.ns_fid, x1, x2)
         ) + np.mean(
             [
                 self.equation1(self.dtau0_fid, x1, x2),
-                self.equation2(self.ap_fid, x1, x2),
+                self.equation2(self.Ap_fid, x1, x2),
+                self.equation3(self.ns_fid, x1, x2),
             ]
         )  # Mean of constant terms
 
@@ -37,33 +41,38 @@ class PySREmu:
         """
         only vary dtau0
         """
-        return (((1.4061172 - x1) ** -0.5989224) * dtau0) - (((x2 * 1.3422583) - dtau0) + 1.3998809)
-    #"(((0.5161957 ^ x1) + ((x2 - x0) * -1.3541394)) + ((x1 * 1.5438807) * x0)) + -2.111951"
+        return  (((dtau0 + x1) - 1.0002773) * 1.6420794) - x2
+
 
     def equation2(self, Ap, x1, x2):
         """
         only vary Ap
         """
-        return (((Ap + Ap) ** np.cos(x1)) + ((-0.5290618 - np.sin(x2)) * 1.4107764)) + Ap
-    #"((Ap - (x2 / 1.5362192)) / (0.4451702 ^ cos(x1))) - sin(0.06949184 ^ (Ap / cos(x1)))"
-    #"((3.5228245 - x1) * ((x0 - ((square(x2) ^ 3.1476886) ^ 0.10595473)) / exp(x0 * 0.33204415))) + sin(x2)"
-    #"((0.61511153 - x0) * (x1 + (x0 + -2.3390062))) + (((x2 + -0.2525191) - x0) * -1.2778898)"
+        return ((((Ap * (x1 * x1)) + -1.17207) * ((Ap * -2.4086287) + x2)) - 1.0434937) - (x1 * -1.5642396)
+
+    
+    def equation3(self, ns, x1, x2):
+        """
+        only vary ns
+        """
+        return (-0.48247418 + ((x1 * (ns * 3.1947596)) - x2)) - x1
 
     def predict(self, X):
         """
-        X: (number of points, number of parameters) -> e.g., (1750, 4)
+        X: (number of points, number of parameters) -> e.g., (1750, 5)
 
         0: dtau0
         1: Ap
-        2: x1
-        3: x2
+        2: ns
+        3: x1
+        4: x2
         """
         y_pred = []
 
         for _x in X:
             # _x is (4, )
-            dtau0, ap, x1, x2 = _x
-            this_y_pred = self.equation_(dtau0, ap, x1, x2)
+            dtau0, Ap, ns, x1, x2 = _x
+            this_y_pred = self.equation_(dtau0, Ap, ns, x1, x2)
             y_pred.append(this_y_pred)
 
         return np.array(y_pred)
@@ -91,8 +100,7 @@ plt.rcParams["grid.color"] = "#666666"
 
 ####### Set Input Arguments ########
 # This is where you set the args to your function.
-# Parameter name
-param_name = "dtau0"  
+
 # take z = 3.6
 z = 3.6
 
@@ -115,9 +123,9 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["dtau0","Ap"]
+param_subset=["dtau0","Ap","ns"]
 param_subset_name = "-".join(param_subset) # make list into string
-outdir = "2pvar"
+outdir = "3pvar"
 
 import os
 print(os.path.abspath("lf_sobol2p_n['dtau0', 'ns']"))
@@ -137,6 +145,7 @@ with h5py.File(
 
     # this is a flatten array of param and k
     resolution_low=np.full((nnparam * nkk, 1),0.4)
+    # TODO: high fidelity resolution
 
     print(kfkms_low.shape)
     params_low = file["params"][:]
@@ -149,7 +158,23 @@ with h5py.File(
     assert np.abs(zout[zindex] - z) < 0.1
     print(kfkms_low[:, zindex, :])
     
+# TODO load high-fidelity data
     
+#kfkms.shape, flux_vectors.shape, zout.shape, params.shape
+"""
+with h5py.File(
+    "../InferenceMultiFidelity/1pvar/hf_{}_npoints50_datacorrFalse.hdf5".format(param_name), "r"
+) as file:
+    print(file.keys())
+
+    flux_vectors_hi = file["flux_vectors"][:]
+    kfkms_hi = file["kfkms"][:]
+    # kfmpc = file["kfmpc"][:]
+    zout_hi = file["zout"][:]
+    resolution_hi=np.full((1750,1),0.8)
+    params_hi = file["params"][:]
+"""
+# zindex = np.where(zout == z)[0]#[0]  # index of z = 5
 
 # take z=3.6, and flatten the flux vectors, such that the dim=1 is p1d values per k and parameter
 flux_vectors_z_low = flux_vectors_low[:, zindex, :]
@@ -164,8 +189,8 @@ np.savetxt(f"{outdir}/std_flux_low_{param_subset_name}.txt", std_flux_low)
 print("mean_flux_low:", mean_flux_low.mean())
 print("std_flux_low:", std_flux_low.mean())
 #use the mean and std variables later when reverting back to original scale
-
-
+#make this a function instead of in here
+########################################################################
 flux_vectors_z_low = flux_vectors_z_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
 # do the same for kfkms
@@ -210,13 +235,21 @@ X_k_max=np.max(X_k,axis=0)
 X_k_min=np.min(X_k,axis=0)
 X_k_normalized=(X_k-X_k_min)/(X_k_max-X_k_min)
 
+print(X_param_normalized.shape)
+print(X_k_normalized.shape)
+print(resolution_low.shape)
+
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
 X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 4)
-assert(X.shape== (nnparam * nkk, 3))
+# TODO : add resolution_high when using high-fidelity data
+assert(X.shape== (nnparam * nkk, 4))
 
 # --- Preparing the input to the model ---
 X_test = X_1  # only low-fidelity data for testing
+# TODO : add high-fidelity data for testing later
 y_true = y  # true values for comparison
+# TODO: add high-fidelity true values for comparison later
+# y_hi = flux_vectors_z_high
 
 # --- Predict using your trained model ---
 model = PySREmu()
@@ -269,8 +302,10 @@ plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D (colored by dtau0)")
 plt.colorbar(sc, label="dtau0 value")
 plt.grid(True)
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
+
 plt.show()
+
 
 #normalized plot
 # TODO: remove this later for clean

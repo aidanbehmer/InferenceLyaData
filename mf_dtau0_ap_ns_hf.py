@@ -81,7 +81,6 @@ class PySREmu:
 
 #### NOW STARTS THE REST OF THE CODE ####
 
-
 import time
 
 import matplotlib.pyplot as plt
@@ -98,16 +97,8 @@ from sklearn.model_selection import train_test_split
 plt.rcParams["axes.facecolor"] = "white"
 plt.rcParams["grid.color"] = "#666666"
 
-####### Set Input Arguments ########
-# This is where you set the args to your function.
-
-# take z = 3.6
 z = 3.6
 
-# Plotting
-quantile_low = 0.16  # quantile for parameter value to fix
-quantile_high = 0.84  # quantile for parameter value to fix
-####################################
 
 param_dict = {
     "dtau0": 0,
@@ -123,31 +114,30 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["dtau0","Ap","ns"]
+param_subset=["dtau0","Ap",'ns']
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "3pvar"
 
 import os
-print(os.path.abspath("lf_sobol2p_n['dtau0', 'ns']"))
 
 # TODO: Probably also be careful about the filepath~
 with h5py.File(
-    f"{outdir}/lf_sobol2p_n{param_subset_name}.hdf5", "r"
+    f"{outdir}/hf_sobol2p_n{param_subset_name}.hdf5", "r"
 ) as file:
     print(file.keys())
     
-    flux_vectors_low = file["flux_vectors"][:]
-    kfkms_low = file["kfkms"][:]
+    flux_vectors_high = file["flux_vectors"][:]
+    kfkms_high = file["kfkms"][:]
     # kfmpc = file["kfmpc"][:]
     zout = file["zout"][:]
     
-    nnparam, nzz, nkk = kfkms_low.shape
+    nnparam, nzz, nkk = kfkms_high.shape
 
     # this is a flatten array of param and k
-    resolution_low=np.full((nnparam * nkk, 1),0.4)
+    resolution_high=np.full((nnparam * nkk, 1),0.8)
 
-    print(kfkms_low.shape)
-    params_low = file["params"][:]
+    print(kfkms_high.shape)
+    params_high = file["params"][:]
     print(zout)
     print(zout==z)
     # closest index z to zout
@@ -155,45 +145,28 @@ with h5py.File(
     print("Closest index to z={} is at index {}, zout={}".format(z, zindex, zout[zindex]))
     # difference should be small such that |z- zout| < 0.1
     assert np.abs(zout[zindex] - z) < 0.1
-    print(kfkms_low[:, zindex, :])
+    print(kfkms_high[:, zindex, :])
     
     
-#kfkms.shape, flux_vectors.shape, zout.shape, params.shape
-"""
-with h5py.File(
-    "../InferenceMultiFidelity/1pvar/hf_{}_npoints50_datacorrFalse.hdf5".format(param_name), "r"
-) as file:
-    print(file.keys())
-
-    flux_vectors_hi = file["flux_vectors"][:]
-    kfkms_hi = file["kfkms"][:]
-    # kfmpc = file["kfmpc"][:]
-    zout_hi = file["zout"][:]
-    resolution_hi=np.full((1750,1),0.8)
-    params_hi = file["params"][:]
-"""
-# zindex = np.where(zout == z)[0]#[0]  # index of z = 5
 
 # take z=3.6, and flatten the flux vectors, such that the dim=1 is p1d values per k and parameter
-flux_vectors_z_low = flux_vectors_low[:, zindex, :]
-mean_flux_low = np.mean(flux_vectors_z_low, axis=0)
-std_flux_low = np.std(flux_vectors_z_low, axis=0)
-flux_vectors_z_low = (flux_vectors_z_low - mean_flux_low) / std_flux_low  # normalize to mean
+flux_vectors_z_high = flux_vectors_high[:, zindex, :]
 
-# save the mean and std txt files for later use
-np.savetxt(f"{outdir}/mean_flux_low_{param_subset_name}.txt", mean_flux_low)
-np.savetxt(f"{outdir}/std_flux_low_{param_subset_name}.txt", std_flux_low)
+mean_flux_low=np.loadtxt(f"/Users/aidanbehmer/Sum25Research/InferenceMultiFidelity/3pvar/mean_flux_low_dtau0-Ap-ns.txt")
+std_flux_low=np.loadtxt(f"/Users/aidanbehmer/Sum25Research/InferenceMultiFidelity/3pvar/std_flux_low_dtau0-Ap-ns.txt")
 
-print("mean_flux_low:", mean_flux_low.mean())
-print("std_flux_low:", std_flux_low.mean())
+flux_vectors_z_high = (flux_vectors_z_high - mean_flux_low) / std_flux_low  # normalize to mean
+
+
+
 #use the mean and std variables later when reverting back to original scale
-#make this a function instead of in here
-########################################################################
-flux_vectors_z_low = flux_vectors_z_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
+
+
+flux_vectors_z_high = flux_vectors_z_high.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
 # do the same for kfkms
-kfkms_z_low = kfkms_low[:, zindex, :]
-kfkms_z_low = kfkms_z_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
+kfkms_z_high = kfkms_high[:, zindex, :]
+kfkms_z_high= kfkms_z_high.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
 # loop over param_subset to get the values for each parameter
 X_param = []
@@ -201,21 +174,21 @@ for param_test in param_subset:
     # get the index from the dict
     param_idx = param_dict[param_test]
     # get the values for this parameter
-    params_values_low = params_low[:, param_idx]
+    params_values_high = params_high[:, param_idx]
 
     # repeat this for the number of kfkms
-    params_values_low = np.repeat(params_values_low[:, np.newaxis], kfkms_low.shape[2], axis=1)
-    params_values_low = params_values_low.flatten()[:, np.newaxis]  # add a new axis to make it 2D
+    params_values_high = np.repeat(params_values_high[:, np.newaxis], kfkms_high.shape[0], axis=1)
+    params_values_high = params_values_high.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
     # append to the list
-    X_param.append(params_values_low)
+    X_param.append(params_values_high)
 
 # Shapes: (1750, 1)
 X_param = np.hstack(X_param)
 print("X_param shape: "+str(X_param.shape))
-X_k = kfkms_z_low
+X_k = kfkms_z_high
 print("X_k shape: "+str(X_k.shape))
-y = flux_vectors_z_low
+y = flux_vectors_z_high
 
 assert(y.shape == (nnparam * nkk, 1))
 # Concatenate inputs to form design matrix
@@ -233,9 +206,13 @@ X_k_max=np.max(X_k,axis=0)
 X_k_min=np.min(X_k,axis=0)
 X_k_normalized=(X_k-X_k_min)/(X_k_max-X_k_min)
 
+print(X_param_normalized.shape)
+print(X_k_normalized.shape)
+print(resolution_high.shape)
+
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
-X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_low])  # shape: (1750, 4)
-assert(X.shape== (nnparam * nkk, 4))
+X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_high])  # shape: (1750, 4)
+assert(X.shape== (nnparam * nkk, 3))
 
 # --- Preparing the input to the model ---
 X_test = X_1  # only low-fidelity data for testing
@@ -292,10 +269,8 @@ plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D (colored by dtau0)")
 plt.colorbar(sc, label="dtau0 value")
 plt.grid(True)
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
-
+plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
-
 
 #normalized plot
 # TODO: remove this later for clean
