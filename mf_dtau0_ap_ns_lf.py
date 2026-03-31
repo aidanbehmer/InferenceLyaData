@@ -271,7 +271,7 @@ plt.xlabel("True P1D (normalized)")
 plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
@@ -293,7 +293,7 @@ y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
 plt.figure(figsize=(8, 6))
 sc = plt.scatter(
     y_true.flatten(), y_pred.flatten(),
-    c=X_param[:, 0],  # color by dtau0
+    c=X_param[:, 2],  # color by dtau0
     cmap='copper', alpha=0.5
 )
 plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
@@ -302,7 +302,7 @@ plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D (colored by dtau0)")
 plt.colorbar(sc, label="dtau0 value")
 plt.grid(True)
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
 
 plt.show()
 
@@ -339,5 +339,16 @@ plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
 plt.title("True vs Predicted P1D")
 plt.grid()
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.show()
+
+relative_error_denorm_array = np.mean(np.abs(y_diff_denorm.reshape((nnparam, nkk)) / y_true_denorm.reshape((nnparam, nkk))), axis=0) * 100
+relative_error_denorm_array.shape
+np.savetxt(f"{outdir}/relative_error_denorm_lf_{param_subset_name}.txt", relative_error_denorm_array)
+plt.plot(kfkms_low[0, 0, :], relative_error_denorm_array)
+np.savetxt(f"{outdir}/kfkms_low_{param_subset_name}.txt", kfkms_low[0, 0, :])
+plt.xlabel("k (h/Mpc)")
+plt.ylabel("Relative Error (%)")
+plt.title("Relative Error as a Function of k")
+plt.savefig(f"{outdir}/lf_relative_error_vs_k_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()

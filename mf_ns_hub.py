@@ -4,10 +4,10 @@ import numpy as np
 class PySREmu:
 
     # because we normalized to [0, 1]
-    dtau0_fid = 0.5
-    ap_fid = 0.5
+    ns_fid = 0.5
+    hub_fid = 0.5
 
-    def equation_(self, dtau0, ap, x1, x2):
+    def equation_(self, ns, hub, x1, x2):
         """
         x1: normalized k
         x2: resoltuion (LF: 0.4, HF: 0.8)
@@ -21,30 +21,30 @@ class PySREmu:
           + Mean(constant terms(eqaution1(Herei_fid, x1, x2) and equation2(alphaq_fid, x1, x2) are constants))
         """
         return (
-            self.equation1(dtau0, x1, x2)
-            - self.equation1(self.dtau0_fid, x1, x2)
-            + self.equation2(ap, x1, x2)
-            - self.equation2(self.ap_fid, x1, x2)
+            self.equation1(ns, x1, x2)
+            - self.equation1(self.ns_fid, x1, x2)
+            + self.equation2(hub, x1, x2)
+            - self.equation2(self.hub_fid, x1, x2)
             + 0.0
         ) + np.mean(
             [
-                self.equation1(self.dtau0_fid, x1, x2),
-                self.equation2(self.ap_fid, x1, x2),
+                self.equation1(self.ns_fid, x1, x2),
+                self.equation2(self.hub_fid, x1, x2),
             ]
         )  # Mean of constant terms
 
-    def equation1(self, dtau0, x1, x2):
+    def equation1(self, ns, x1, x2):
         """
-        only vary dtau0
+        only vary ns
         """
-        return (((1.4061172 - x1) ** -0.5989224) * dtau0) - (((x2 * 1.3422583) - dtau0) + 1.3998809)
+        return (((ns * x1) - x2) * 2.3955164)
     #"(((0.5161957 ^ x1) + ((x2 - x0) * -1.3541394)) + ((x1 * 1.5438807) * x0)) + -2.111951"
 
-    def equation2(self, Ap, x1, x2):
+    def equation2(self, hub, x1, x2):
         """
-        only vary Ap
+        only vary hub
         """
-        return (((Ap + Ap) ** np.cos(x1)) + ((-0.5290618 - np.sin(x2)) * 1.4107764)) + Ap
+        return (np.cos(((x2 + 0.7157408) - (x1 * 1.5351741))**4) / 0.4758132) - (x2 + 1.0469613)
     #"((Ap - (x2 / 1.5362192)) / (0.4451702 ^ cos(x1))) - sin(0.06949184 ^ (Ap / cos(x1)))"
     #"((3.5228245 - x1) * ((x0 - ((square(x2) ^ 3.1476886) ^ 0.10595473)) / exp(x0 * 0.33204415))) + sin(x2)"
     #"((0.61511153 - x0) * (x1 + (x0 + -2.3390062))) + (((x2 + -0.2525191) - x0) * -1.2778898)"
@@ -62,8 +62,8 @@ class PySREmu:
 
         for _x in X:
             # _x is (4, )
-            dtau0, ap, x1, x2 = _x
-            this_y_pred = self.equation_(dtau0, ap, x1, x2)
+            ns, hub, x1, x2 = _x
+            this_y_pred = self.equation_(ns, hub, x1, x2)
             y_pred.append(this_y_pred)
 
         return np.array(y_pred)
@@ -115,12 +115,12 @@ param_dict = {
     "bhfeedback": 10,
 }
 # param_idx = param_dict[param_name]  # index of the parameter in the params array
-param_subset=["dtau0","Ap"]
+param_subset=["ns","hub"]
 param_subset_name = "-".join(param_subset) # make list into string
 outdir = "2pvar"
 
 import os
-print(os.path.abspath("lf_sobol2p_n['dtau0', 'ns']"))
+
 
 # TODO: Probably also be careful about the filepath~
 with h5py.File(

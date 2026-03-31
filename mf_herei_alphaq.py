@@ -318,3 +318,13 @@ plt.title("True vs Predicted P1D")
 plt.grid()
 plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
+
+
+relative_error_denorm_array = np.mean(np.abs(y_diff_denorm.reshape((nnparam, nkk)) / y_true_denorm.reshape((nnparam, nkk))), axis=0) * 100
+relative_error_denorm_array.shape
+plt.plot(kfkms_low[0, 0, :], relative_error_denorm_array)
+plt.xlabel("k (h/Mpc)")
+plt.ylabel("Relative Error (%)")
+plt.title("Relative Error as a Function of k")
+plt.savefig(f"{outdir}/relative_error_vs_k_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.show()

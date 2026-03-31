@@ -177,7 +177,7 @@ for param_test in param_subset:
     params_values_high = params_high[:, param_idx]
 
     # repeat this for the number of kfkms
-    params_values_high = np.repeat(params_values_high[:, np.newaxis], kfkms_high.shape[0], axis=1)
+    params_values_high = np.repeat(params_values_high[:, np.newaxis], kfkms_high.shape[2], axis=1)
     params_values_high = params_values_high.flatten()[:, np.newaxis]  # add a new axis to make it 2D
 
     # append to the list
@@ -212,7 +212,7 @@ print(resolution_high.shape)
 
 X = np.hstack([X_param_normalized, X_k_normalized])  # shape: (1750, 2)
 X_1 = np.hstack([X_param_normalized, X_k_normalized,resolution_high])  # shape: (1750, 4)
-assert(X.shape== (nnparam * nkk, 3))
+assert(X.shape== (nnparam * nkk, 4))
 
 # --- Preparing the input to the model ---
 X_test = X_1  # only low-fidelity data for testing
@@ -238,7 +238,7 @@ plt.xlabel("True P1D (normalized)")
 plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/hf_true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
@@ -269,7 +269,7 @@ plt.ylabel("Predicted P1D (normalized)")
 plt.title("True vs Predicted P1D (colored by dtau0)")
 plt.colorbar(sc, label="dtau0 value")
 plt.grid(True)
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/hf_true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 #normalized plot
@@ -304,5 +304,16 @@ plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
 plt.title("True vs Predicted P1D")
 plt.grid()
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.savefig(f"{outdir}/hf_true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
+plt.show()
+
+relative_error_denorm_array = np.mean(np.abs(y_diff_denorm.reshape((nnparam, nkk)) / y_true_denorm.reshape((nnparam, nkk))), axis=0) * 100
+relative_error_denorm_array.shape
+np.savetxt(f"{outdir}/relative_error_denorm_hf_{param_subset_name}.txt", relative_error_denorm_array)
+plt.plot(kfkms_high[0, 0, :], relative_error_denorm_array)
+np.savetxt(f"{outdir}/kfkms_high_{param_subset_name}.txt", kfkms_high[0, 0, :])
+plt.xlabel("k (h/Mpc)")
+plt.ylabel("Relative Error (%)")
+plt.title("Relative Error as a Function of k")
+plt.savefig(f"{outdir}/hf_relative_error_vs_k_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
