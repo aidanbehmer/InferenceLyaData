@@ -235,42 +235,13 @@ plt.figure(figsize=(8, 6))
 plt.scatter(y_true, y_pred, alpha=0.5)
 plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
 plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
+plt.ylabel("Predicted P1D  for ns and hub (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
 plt.savefig(f"{outdir}/true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
 
 
-# TODO: remove this later for clean
-n_sims, n_k = nnparam, nkk
-
-mean_flux_expand = np.repeat(mean_flux_low[np.newaxis, :], n_sims, axis=0)
-std_flux_expand = np.repeat(std_flux_low[np.newaxis, :], n_sims, axis=0)
-
-# Flatten to align with y_pred
-mean_flux_flat = mean_flux_expand.flatten()
-std_flux_flat = std_flux_expand.flatten()
-
-# Denormalize
-y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
-
-# comparing true vs predicted
-
-plt.figure(figsize=(8, 6))
-sc = plt.scatter(
-    y_true.flatten(), y_pred.flatten(),
-    c=X_param[:, 0],  # color by dtau0
-    cmap='copper', alpha=0.5
-)
-plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
-plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
-plt.title("True vs Predicted P1D (colored by dtau0)")
-plt.colorbar(sc, label="dtau0 value")
-plt.grid(True)
-plt.savefig(f"{outdir}/true_vs_predicted_p1d_colored_{param_subset_name}_z{z}.pdf",dpi=300)
-plt.show()
 
 #normalized plot
 # TODO: remove this later for clean
@@ -302,7 +273,7 @@ plt.scatter(y_true_denorm, y_pred_denorm, alpha=0.5)
 plt.plot([np.min(y_true_denorm), np.max(y_true_denorm)], [np.min(y_true_denorm), np.max(y_true_denorm)], 'r--')
 plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
-plt.title("True vs Predicted P1D")
+plt.title("True vs Predicted P1D for ns and hub (denormalized)")
 plt.grid()
 plt.savefig(f"{outdir}/true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
@@ -312,6 +283,6 @@ relative_error_denorm_array.shape
 plt.plot(kfkms_low[0, 0, :], relative_error_denorm_array)
 plt.xlabel("k (h/Mpc)")
 plt.ylabel("Relative Error (%)")
-plt.title("Relative Error as a Function of k")
+plt.title("Relative Error as a Function of k for ns and hub")
 plt.savefig(f"{outdir}/relative_error_vs_k_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()

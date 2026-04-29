@@ -266,7 +266,7 @@ plt.figure(figsize=(8, 6))
 plt.scatter(y_true, y_pred, alpha=0.5)
 plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
 plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
+plt.ylabel("Predicted P1D for ns, hub, and hireionz (normalized)")
 plt.title("True vs Predicted P1D")
 plt.grid()
 plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_{param_subset_name}_z{z}.pdf",dpi=300)
@@ -287,22 +287,6 @@ std_flux_flat = std_flux_expand.flatten()
 y_pred_denorm = y_pred.flatten() * std_flux_flat + mean_flux_flat
 
 # comparing true vs predicted
-
-plt.figure(figsize=(8, 6))
-sc = plt.scatter(
-    y_true.flatten(), y_pred.flatten(),
-    c=X_param[:, 2],  # color by dtau0
-    cmap='copper', alpha=0.5
-)
-plt.plot([np.min(y_true), np.max(y_true)], [np.min(y_true), np.max(y_true)], 'r--')
-plt.xlabel("True P1D (normalized)")
-plt.ylabel("Predicted P1D (normalized)")
-plt.title("True vs Predicted P1D (colored by dtau0)")
-plt.colorbar(sc, label="dtau0 value")
-plt.grid(True)
-plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_colored_dtau0_{param_subset_name}_z{z}.pdf",dpi=300)
-
-plt.show()
 
 
 #normalized plot
@@ -335,7 +319,7 @@ plt.scatter(y_true_denorm, y_pred_denorm, alpha=0.5)
 plt.plot([np.min(y_true_denorm), np.max(y_true_denorm)], [np.min(y_true_denorm), np.max(y_true_denorm)], 'r--')
 plt.xlabel("True P1D")
 plt.ylabel("Predicted P1D")
-plt.title("True vs Predicted P1D")
+plt.title("True vs Predicted P1D for ns, hub, and hireionz (denormalized)")
 plt.grid()
 plt.savefig(f"{outdir}/lf_true_vs_predicted_p1d_denorm_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
@@ -345,6 +329,6 @@ relative_error_denorm_array.shape
 plt.plot(kfkms_low[0, 0, :], relative_error_denorm_array)
 plt.xlabel("k (h/Mpc)")
 plt.ylabel("Relative Error (%)")
-plt.title("Relative Error as a Function of k")
+plt.title("Relative Error as a Function of k for ns, hub, and hireionz")
 plt.savefig(f"{outdir}/lf_relative_error_vs_k_{param_subset_name}_z{z}.pdf",dpi=300)
 plt.show()
